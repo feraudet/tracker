@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" 
+      xmlns:v="urn:schemas-microsoft-com:vml">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+    <title>Google Maps API Example: GGeoXml KML Overlay</title>
+     <script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAGdvu711CjVYBdSLJltwFDhR3coRlXuo9xlNmrdIbWhZQW65S4hR8Ab8t5rr0Dc2v6pn5Lskb4wZFcg" type="text/javascript"></script>
+    <script type="text/javascript"> 
+   
+    var map;
+    var geoXml; 
+    var toggleState = 1;
+
+    function initialize() {
+	var date = new Date();
+	var toto = date.getTime();
+        geoXml = new GGeoXml("http://feraudet.com/gps/kml.php?" + toto);
+        //geoXml = new GGeoXml("http://feraudet.com/gps/cta.kml?123" + toto);
+        map = new GMap2(document.getElementById("map_canvas")); 
+        map.setCenter(new GLatLng(48.7062916667,1.92896166667), 11); 
+	//map.setCenter(new GLatLng(41.875696,-87.624207), 11);
+        map.setUIToDefault();
+        map.addOverlay(geoXml);
+    } 
+
+    function toggleMyKml() {
+      if (toggleState == 1) {
+        map.removeOverlay(geoXml);
+        toggleState = 0;
+      } else {
+        map.addOverlay(geoXml);
+        toggleState = 1;
+      }
+    }
+	</script>
+  </head>
+
+  <body onload="initialize()">
+    <div id="map_canvas" style="width: 1024px; height: 768px; float:left; border: 1px solid black;"></div>
+    </div>
+    <br clear="all"/>
+    <br/>
+    <input type="button" value="Toggle KML" onClick="toggleMyKml();"/>
+  </body>
+</html>
