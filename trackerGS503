@@ -20,7 +20,31 @@
 #
 #    For information : cyril@feraudet.com
 ####################################################################
-
+/**
+  * Database creation script
+  * SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
+  * CREATE DATABASE `GS503` DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+  * USE `GS503`;
+  * 
+  * CREATE TABLE IF NOT EXISTS `gps` (
+  *   `id` int(11) NOT NULL AUTO_INCREMENT,
+  *   `date` datetime NOT NULL,
+  *   `imei` varchar(50) NOT NULL,
+  *   `latitude` float NOT NULL,
+  *   `longitude` float NOT NULL,
+  *   `speed` int(11) NOT NULL,
+  *   `direction` int(11) NOT NULL,
+  *   `type_identity_code` varchar(4) NOT NULL,
+  *   `language` int(11) NOT NULL,
+  *   `east_west_timezone` varchar(1) NOT NULL,
+  *   `timezone` varchar(4) NOT NULL,
+  *   `north_south_latitude` varchar(1) NOT NULL,
+  *   `east_west_latitude` varchar(1) NOT NULL,
+  *   `gps_location_fixed` int(11) NOT NULL,
+  *   `realtime_gps` int(11) NOT NULL,
+  *   PRIMARY KEY (`id`)
+  * ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+  */
 $ip = "88.191.128.220";
 $port = 1026;
 
