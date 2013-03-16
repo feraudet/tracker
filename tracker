@@ -61,7 +61,9 @@ set_time_limit(0);
 ob_implicit_flush();
 declare(ticks = 1);
 
-become_daemon();
+if(!isset($argv[1]) || $argv[1] != '-f') {
+	become_daemon();
+}
 
 /* nobody/nogroup, change to your host's uid/gid of the non-priv user */
 change_identity(65534, 65534);
@@ -149,7 +151,7 @@ function sig_handler($sig)
     {
         case SIGTERM:
         case SIGINT:
-            //exit();
+            exit();
         break;
 
         case SIGCHLD:
