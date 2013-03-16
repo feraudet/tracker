@@ -51,7 +51,7 @@
   * Listens for requests and forks on each connection
   */
 
-$ip = '88.191.223.158';
+$ip = '0.0.0.0';
 $port = 1025;
 
 $__server_listening = true;

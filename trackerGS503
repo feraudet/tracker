@@ -45,7 +45,7 @@
   *   PRIMARY KEY (`id`)
   * ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
   */
-$ip = "88.191.128.220";
+$ip = "0.0.0.0";
 $port = 1026;
 
 $__server_listening = true;
