@@ -44,9 +44,46 @@
   *   `realtime_gps` int(11) NOT NULL,
   *   PRIMARY KEY (`id`)
   * ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+  * 
+  * CREATE TABLE IF NOT EXISTS `extended_lsb` (
+  *   `id` int(11) NOT NULL AUTO_INCREMENT,
+  *   `date` datetime NOT NULL,
+  *   `imei` varchar(50) NOT NULL,
+  *   `mcc` int(11) NOT NULL,
+  *   `mnc` int(11) NOT NULL,
+  *   `lac` int(11) NOT NULL,
+  *   `mci` int(11) NOT NULL,
+  *   `rssi` int(11) NOT NULL,
+  *   PRIMARY KEY (`id`)
+  * ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+  * 
+  * CREATE TABLE IF NOT EXISTS `lsb` (
+  *   `id` int(11) NOT NULL AUTO_INCREMENT,
+  *   `date` datetime NOT NULL,
+  *   `imei` varchar(50) NOT NULL,
+  *   `mcc` int(11) NOT NULL,
+  *   `mnc` int(11) NOT NULL,
+  *   `lac` int(11) NOT NULL,
+  *   `ci` int(11) NOT NULL,
+  *   `rssi` int(11) NOT NULL,
+  *   PRIMARY KEY (`id`)
+  * ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
+  * 
+  * CREATE TABLE IF NOT EXISTS `status` (
+  *   `id` int(11) NOT NULL AUTO_INCREMENT,
+  *   `date` datetime NOT NULL,
+  *   `imei` varchar(50) NOT NULL,
+  *   `voltage` int(11) NOT NULL,
+  *   `gsm_signal` int(11) NOT NULL,
+  *   PRIMARY KEY (`id`)
+  * ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
   */
 $ip = "0.0.0.0";
 $port = 1026;
+$mysql_host = 'localhost';
+$mysql_user = 'tracker';
+$mysql_passwd = '';
+$mysql_database = 'GS503';
 
 $__server_listening = true;
 
@@ -55,17 +92,22 @@ set_time_limit(0);
 ob_implicit_flush();
 declare(ticks = 1);
 
+$GLOBALS['foreground'] = true;
 if(!isset($argv[1]) || $argv[1] != '-f') {
+	$GLOBALS['foreground'] = false;
 	become_daemon();
 }
+if ($GLOBALS['foreground'] == true) { echo "Foreground\n"; }
 
-/* nobody/nogroup, change to your host's uid/gid of the non-priv user */
-change_identity(65534, 65534);
+if ($GLOBALS['foreground'] == false) {
+	/* nobody/nogroup, change to your host's uid/gid of the non-priv user */
+	change_identity(65534, 65534);
 
-/* handle signals */
-//pcntl_signal(SIGTERM, 'sig_handler');
-//pcntl_signal(SIGINT, 'sig_handler');
-pcntl_signal(SIGCHLD, 'sig_handler');
+	/* handle signals */
+	pcntl_signal(SIGTERM, 'sig_handler');
+	pcntl_signal(SIGINT, 'sig_handler');
+	pcntl_signal(SIGCHLD, 'sig_handler');
+}
 
 $crctab16 = array(0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf, 
 	0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c, 0xdbe5, 0xe97e, 0xf8f7, 
@@ -161,19 +203,19 @@ function server_loop($address, $port)
 {
     GLOBAL $__server_listening;
 
-    if(($sock = socket_create(AF_INET, SOCK_STREAM, 0)) < 0)
+    if(!$sock = socket_create(AF_INET, SOCK_STREAM, 0))
     {
         echo "failed to create socket: ".socket_strerror($sock)."\n";
         exit();
     }
 
-    if(($ret = socket_bind($sock, $address, $port)) < 0)
+    if(!$ret = socket_bind($sock, $address, $port))
     {
         echo "failed to bind socket: ".socket_strerror($ret)."\n";
         exit();
     }
 
-    if( ( $ret = socket_listen( $sock, 0 ) ) < 0 )
+    if(!$ret = socket_listen( $sock, 0 ))
     {
         echo "failed to listen to socket: ".socket_strerror($ret)."\n";
         exit();
@@ -181,7 +223,7 @@ function server_loop($address, $port)
 
     socket_set_nonblock($sock);
    
-    echo "waiting for clients to connect\n";
+    if ($GLOBALS['foreground'] == true) { echo "waiting for clients to connect\n"; }
 
     while ($__server_listening)
     {
@@ -209,7 +251,7 @@ function sig_handler($sig)
     {
         case SIGTERM:
         case SIGINT:
-            exit();
+            //exit();
         break;
 
         case SIGCHLD:
@@ -225,14 +267,16 @@ function handle_client($ssock, $csock)
 {
     GLOBAL $__server_listening;
 
-    $pid = pcntl_fork();
+    if ($GLOBALS['foreground'] == false) {
+	$pid = pcntl_fork();
+    }
 
-    if ($pid == -1)
+    if ($GLOBALS['foreground'] == false && $pid == -1)
     {
         /* fork failed */
         echo "fork failure!\n";
         die;
-    }elseif ($pid == 0)
+    }elseif ($GLOBALS['foreground'] == true || $pid == 0)
     {
         /* child process */
         $__server_listening = false;
@@ -260,7 +304,7 @@ function interact($socket)
 		socket_recv($socket, $rec, 1, 0);
 		$protocol_bin = $rec[0];
 		$protocol = bin2hex($protocol_bin);
-		echo "protocol: $protocol\n";
+		if ($GLOBALS['foreground'] == true) { echo "protocol: $protocol\n"; }
 		socket_recv($socket, $rec, hexdec($package_length) - 5, 0);
 		$datas = $rec;
 		socket_recv($socket, $rec, 2, 0);
@@ -287,13 +331,13 @@ function interact($socket)
 				handle_gps($datas, $socket);
 			break;
 			case '11':
-				handle_extended_lsb($datas, $socket);
+				handle_lsb($datas, $socket);
 			break;
 			case '13':
 				handle_status($datas, $socket);
 			break;
 			case '18':
-				handle_lsb($datas, $socket);
+				handle_extended_lsb($datas, $socket);
 			break;
 			case '80':
 				handle_command_response($datas, $socket);
@@ -336,18 +380,56 @@ function handle_gps($datas, $socket) {
 function handle_extended_lsb($datas, $socket) {
 	global $gpsdata;
 	// TODO: Really handle LSB ...
+	$gpsdata['datetime'] = binhex2($datas[0]).binhex2($datas[1]).binhex2($datas[2]).binhex2($datas[3]).binhex2($datas[4]).binhex2($datas[5]);
+	$gpsdata['mcc'] = hexdec(bin2hex($datas[6].$datas[7]));
+	$gpsdata['mnc'] = hexdec(bin2hex($datas[8]));
+	$gpsdata['lac'] = hexdec(bin2hex($datas[9].$datas[10]));
+	$gpsdata['mci'] = hexdec(bin2hex($datas[11].$datas[12].$datas[13].$datas[14]));
+	$gpsdata['rssi'] = hexdec(bin2hex($datas[15]));
+	$mysqli = new mysqli($GLOBALS["mysql_host"], $GLOBALS["mysql_user"], $GLOBALS["mysql_passwd"], $GLOBALS["mysql_database"]);
+	$stmt = $mysqli->prepare("INSERT INTO  extended_lsb (`date`, `imei`, `mcc`, `mnc`, `lac`, `mci`, `rssi`) VALUES (?,  ?,  ?,  ?,  ?,  ?,  ?)");
+	$stmt->bind_param("sssssss", date("ymdHis"), $gpsdata['imei'], $gpsdata['mcc'], $gpsdata['mnc'], $gpsdata['lac'], $gpsdata['mci'], $gpsdata['rssi']);
+	$stmt->execute();
+	$stmt->execute();
+	$stmt->close();
+	$mysqli->close();
+	if ($GLOBALS['foreground'] == true) { print_r($gpsdata); }
 	reply($socket, '11');
 }
 
 function handle_status($datas, $socket) {
 	global $gpsdata;
 	// TODO: Really handle status ...
+	$di = $datas[0];
+	$gpsdata['voltage'] = hexdec(bin2hex($datas[1]));
+	$gpsdata['gsm_signal'] = hexdec(bin2hex($datas[1]));
+	if ($GLOBALS['foreground'] == true) { print_r($gpsdata); }
+	$mysqli = new mysqli($GLOBALS["mysql_host"], $GLOBALS["mysql_user"], $GLOBALS["mysql_passwd"], $GLOBALS["mysql_database"]);
+	$stmt = $mysqli->prepare("INSERT INTO  status (`date`, `imei`, `voltage`, `gsm_signal`) VALUES (?,  ?,  ?,  ?)");
+	$stmt->bind_param("ssss", date("ymdHis"), $gpsdata['imei'], $gpsdata['voltage'], $gpsdata['gsm_signal']);
+	$stmt->execute();
+	$stmt->execute();
+	$stmt->close();
+	$mysqli->close();
 	reply($socket, '13');
 }
 
 function handle_lsb($datas, $socket) {
 	global $gpsdata;
 	// TODO: Really handle LSB ...
+	$gpsdata['datetime'] = binhex2($datas[0]).binhex2($datas[1]).binhex2($datas[2]).binhex2($datas[3]).binhex2($datas[4]).binhex2($datas[5]);
+	$gpsdata['mcc'] = hexdec(bin2hex($datas[6].$datas[7]));
+	$gpsdata['mnc'] = hexdec(bin2hex($datas[8]));
+	$gpsdata['lac'] = hexdec(bin2hex($datas[9].$datas[10]));
+	$gpsdata['ci'] = hexdec(bin2hex($datas[11].$datas[12].$datas[13].$datas[14]));
+	if ($GLOBALS['foreground'] == true) { print_r($gpsdata); }
+	$mysqli = new mysqli($GLOBALS["mysql_host"], $GLOBALS["mysql_user"], $GLOBALS["mysql_passwd"], $GLOBALS["mysql_database"]);
+	$stmt = $mysqli->prepare("INSERT INTO  lsb (`date`, `imei`, `mcc`, `mnc`, `lac`, `ci`) VALUES (?,  ?,  ?,  ?,  ?,  ?)");
+	$stmt->bind_param("ssssss", date("ymdHis"), $gpsdata['imei'], $gpsdata['mcc'], $gpsdata['mnc'], $gpsdata['lac'], $gpsdata['ci']);
+	$stmt->execute();
+	$stmt->execute();
+	$stmt->close();
+	$mysqli->close();
 	reply($socket, '18');
 }
 
@@ -355,7 +437,6 @@ function handle_gps_extended_lsb($datas, $socket) {
 	global $gpsdata;
 	$gpsdata['datetime'] = binhex2($datas[0]).binhex2($datas[1]).binhex2($datas[2]).binhex2($datas[3]).binhex2($datas[4]).binhex2($datas[5]);
 	$data_length = $datas[6];
-	echo hexdec(bin2hex($datas[7].$datas[8].$datas[9].$datas[10]))."\n";
 	$gpsdata['latitude'] = hexdec(bin2hex($datas[7].$datas[8].$datas[9].$datas[10])) / 30000 / 60;
 	$gpsdata['longitude'] = hexdec(bin2hex($datas[11].$datas[12].$datas[13].$datas[14])) / 30000 / 60;
 	$gpsdata['speed'] = hexdec(bin2hex($datas[15]));
@@ -366,9 +447,9 @@ function handle_gps_extended_lsb($datas, $socket) {
 	$gpsdata['east_west_latitude'] = ($l & 0x08 == 0x08) ? 'W' : 'E';
 	$gpsdata['gps_location_fixed'] = ($l & 0x10 == 0x10) ? 1 : 0;
 	$gpsdata['realtime_gps'] = ($l & 0x20 == 0x20) ? 0 : 1;
-	print_r($gpsdata);
-	$mysqli = new mysqli("localhost", "tracker", "", "GS503");
-	$stmt = $mysqli->prepare("INSERT INTO  `GS503`.`gps` (`date`, `imei` ,`latitude` ,`longitude` ,`speed` ,`direction` ,`type_identity_code` ,`language` ,`east_west_timezone` ,`timezone` ,`north_south_latitude` ,`east_west_latitude` ,`gps_location_fixed` ,`realtime_gps`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )");
+	if ($GLOBALS['foreground'] == true) { print_r($gpsdata); }
+	$mysqli = new mysqli($GLOBALS["mysql_host"], $GLOBALS["mysql_user"], $GLOBALS["mysql_passwd"], $GLOBALS["mysql_database"]);
+	$stmt = $mysqli->prepare("INSERT INTO  gps (`date`, `imei` ,`latitude` ,`longitude` ,`speed` ,`direction` ,`type_identity_code` ,`language` ,`east_west_timezone` ,`timezone` ,`north_south_latitude` ,`east_west_latitude` ,`gps_location_fixed` ,`realtime_gps`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )");
 	$stmt->bind_param("ssssssssssssss", $gpsdata['datetime'], $gpsdata['imei'], $gpsdata['latitude'], $gpsdata['longitude'], $gpsdata['speed'], $gpsdata['direction'], $gpsdata['type_identity_code'], $gpsdata['language'], $gpsdata['east_west_timezone'], $gpsdata['timezone'], $gpsdata['north_south_latitude'], $gpsdata['east_west_latitude'], $gpsdata['gps_location_fixed'], $gpsdata['realtime_gps']);
 	$stmt->execute();
 	$stmt->close();
@@ -379,7 +460,7 @@ function handle_gps_extended_lsb($datas, $socket) {
 function handle_command_response($datas, $socket) {
 	global $gpsdata;
 	// TODO: Really handle command response ...
-	echo "$datas\n";
+	//echo "$datas\n";
 	reply($socket, '80');
 }
 
